@@ -7,6 +7,8 @@ import time
 import re
 import time
 from interval import Interval
+import pandas as pd
+import datetime
 
 #關閉 ipv6
 
@@ -56,6 +58,25 @@ def rfi_state():
     RSI = ((all_RSI / RSI_DAY) / ((all_RSI / RSI_DAY) + (negative / RSI_DAY))) * 100
     print(RSI)
 
+def check_past_data(mix_show,final_jump,now_val):
+
+    tonow = datetime.datetime.now() #取得目前年月
+
+    past_data = stock1.fetch(tonow.year, tonow.month - 1)
+    past_data = pd.DataFrame(past_data)
+    past_data_high = (past_data['high'])
+    past_data_low = (past_data['low'])
+
+    highest = float(past_data_high.max())
+    lowest = float(past_data_low.min())
+
+    if mix_show == "做多":
+        mix_show = "做多" if now_val > highest and final_jump else "盤整觀望->偏多"
+    elif mix_show == "清倉":
+        mix_show = "清倉" if now_val < lowest else "盤整觀望->偏空"
+
+    return mix_show
+
 for i in range(stock_num):
     list_b_tag1 = str(list_b_tag[i])
     after_sp = list_b_tag1.split('">')[-1].split('.TW')[0] #去切文字，利用符號切其中-1是後面數回來的位置
@@ -68,27 +89,27 @@ for i in range(stock_num):
 old_stock_id = 0
 now_localtime_set_hstart = 9
 now_localtime_set_hstop = 24
-now_localtime_set_mstart1 = 1
+now_localtime_set_mstart1 = 0
 now_localtime_set_mstop1 = 30
 now_localtime_set_mstart2 = 30
 now_localtime_set_mstop2 = 59
 
 
 
-while 1:
+while True:
     now_localtime = time.strftime("%H:%M:%S", time.localtime())
     if int(now_localtime.split(":")[0]) >= now_localtime_set_hstart and int(now_localtime.split(":")[0]) <= now_localtime_set_hstop : #切字元
         if int(now_localtime.split(":")[1]) >= now_localtime_set_mstart1 and int(now_localtime.split(":")[1]) < now_localtime_set_mstop1 \
                 or int(now_localtime.split(":")[1]) >= now_localtime_set_mstart2 and int(now_localtime.split(":")[1]) < now_localtime_set_mstop2:
             for i in range(len(category_name)):
                 if containEnglish(str(category_name[i])) != True and len(str(category_name[i])) < 5:
-                    if True:
-
-                        time.sleep(5)
-                        stock = twstock.realtime.get(str(category_name[i]))
+                    try:
 
                         time.sleep(10)
-                        stock1 = twstock.Stock(str(category_name[i]))
+                        stock = twstock.realtime.get('2367')
+
+                        time.sleep(10)
+                        stock1 = twstock.Stock('2367')
                         print("ok all ")
 
 
@@ -136,13 +157,19 @@ while 1:
 
                         if get_two_float(ltr_ptr, 2) != "-.":
                             last_stock_val = stock1.price[-2]
+
+                            cur_m_val_high = -1
+                            for cur_m_cnt in range(len(stock1.price)):
+                                if cur_m_val_high < stock1.price[cur_m_cnt]:
+                                    cur_m_val_high = stock1.price[cur_m_cnt]
+
                             open_stock = float(get_two_float(open_stock, 2))# 開盤價
                             now_val = float(get_two_float(ltr_ptr, 2))
                             low_val = float(get_two_float(low_ptr, 2))
                             high_val = float(get_two_float(high_ptr, 2))
 
 
-                            jump_signal = True if (((now_val - last_stock_val) / now_val) * 100) > 3 else False  # 是否有跳空訊號
+                            jump_signal = True if ((abs(now_val - last_stock_val) / now_val) * 100) > 3 else False  # 是否有開高訊號
                             jump_strong_signal = True if low_val > average_5_days else False  # 是否有跳空五日訊號
                             final_jump = "是" if jump_signal and jump_strong_signal else "否"  # 是否有雙重跳空訊號
 
@@ -154,6 +181,12 @@ while 1:
                             if final_capacity == "爆大量拉":
                                 min = average_1_capacity
                                 last_bigval_low = low_val
+
+
+                            mix_show = "做多" if now_val >= cur_m_val_high and (now_val * 1.035) > high_val else "清倉" #透過gain去看今天收盤有沒有超過今天和以往最高價
+
+                            time.sleep(10)
+                            mix_show = check_past_data(mix_show,final_jump,now_val)
 
                                 # # 乖離值 Y值（乖離率）＝（當日收盤價－N日內移動平均收市價）/N日內移動平均收盤價×100％
                             # bias_val = int((float(get_two_float(ltr_ptr, 2)) - average_5_days) / 5 * 100)
@@ -177,7 +210,7 @@ while 1:
                             print(msg)
                             print('------------')
 
-                    else:
+                    except:
                             print("ERROR")
 
 
