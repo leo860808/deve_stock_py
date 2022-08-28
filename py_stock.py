@@ -44,21 +44,59 @@ def get_column(target_day1,from_day2):
 
 def rfi_state():
     all_RSI = 0
-    RSI_DAY = 5
+    RSI_DAY = 7
     negative = 0
     RSI = 0
+
     for RSI_COUNT in range(1, RSI_DAY + 1):
-        print(RSI_COUNT)
         if stock1.change[-RSI_COUNT] > 0:
             all_RSI = stock1.change[-RSI_COUNT] + all_RSI
 
         else:
             negative = abs(stock1.change[-RSI_COUNT]) + negative
 
-    RSI = ((all_RSI / RSI_DAY) / ((all_RSI / RSI_DAY) + (negative / RSI_DAY))) * 100
-    print(RSI)
+    up = all_RSI/RSI_DAY
+    down = negative/RSI_DAY
+    RSI = 100 * up / (down+up)
+    all_RSI = 0
+    negative = 0
 
-def check_past_data(mix_show,final_jump,now_val):
+    ###############################################################
+    for RSI_COUNT in range(1, RSI_DAY + 1):
+        if stock1.change[-RSI_COUNT-1] > 0:
+            all_RSI = stock1.change[-RSI_COUNT-1] + all_RSI
+
+        else:
+            negative = abs(stock1.change[-RSI_COUNT-1]) + negative
+
+    up = all_RSI/RSI_DAY
+    down = negative/RSI_DAY
+    RSI2 = 100 * up / (down+up)
+    all_RSI = 0
+    negative = 0
+
+    ###############################################################
+    for RSI_COUNT in range(1, RSI_DAY + 1):
+        if stock1.change[-RSI_COUNT-2] > 0:
+            all_RSI = stock1.change[-RSI_COUNT-2] + all_RSI
+
+        else:
+            negative = abs(stock1.change[-RSI_COUNT-2]) + negative
+
+    up = all_RSI/RSI_DAY
+    down = negative/RSI_DAY
+    RSI3 = 100 * up / (down+up)
+    all_RSI = 0
+    negative = 0
+
+    if RSI > 75 and RSI2 > 75 and RSI3>75:
+        RSI_flag = "該股票鈍化"
+        return RSI_flag
+    else:
+        RSI_flag = "RSI range"
+        return RSI_flag
+
+def check_past_data(mix_show,final_jump,now_val,RSI_flag):
 
     tonow = datetime.datetime.now() #取得目前年月
 
@@ -74,6 +112,11 @@ def check_past_data(mix_show,final_jump,now_val):
         mix_show = "做多" if now_val > highest and final_jump else "盤整觀望->偏多"
     elif mix_show == "清倉":
         mix_show = "清倉" if now_val < lowest else "盤整觀望->偏空"
+
+    if mix_show == "做多":
+        mix_show = "一飛衝天->做多" if RSI_flag == "該股票鈍化" else "正常做多"
+    elif mix_show == "盤整觀望->偏多":
+        mix_show = "一飛衝天->觀望" if RSI_flag == "該股票鈍化" else "正常做多"
 
     return mix_show
 
@@ -94,7 +137,7 @@ now_localtime_set_mstop1 = 30
 now_localtime_set_mstart2 = 30
 now_localtime_set_mstop2 = 59
 
-
+delay_time = 10
 
 while True:
     now_localtime = time.strftime("%H:%M:%S", time.localtime())
@@ -105,48 +148,7 @@ while True:
                 if containEnglish(str(category_name[i])) != True and len(str(category_name[i])) < 5:
                     try:
 
-                        time.sleep(10)
-                        stock = twstock.realtime.get('2367')
-
-                        time.sleep(10)
-                        stock1 = twstock.Stock('2367')
-                        print("ok all ")
-
-
-                        b = twstock.BestFourPoint(stock1)
-
-                        #buy = b.best_four_point_to_buy()  # 買點分析
-                        #sell = b.best_four_point_to_sell()  # 賣點分析
-                        mix = b.best_four_point()  # 綜合分析 建議直接用這個 會比較快
-                        mix_show = ""
-                        if mix[0] == True:
-                            mix_show = "做多"
-                        else:
-                            mix_show = "清倉"
-
-                        average_5_days = stock1.moving_average(stock1.price, 5)[-1]
-                        #average_10_days = stock1.moving_average(stock1.price, 10)[-1]
-                        #average_30_days = stock1.moving_average(stock1.price, 30)[-1]
-
-                        average_1_capacity = int((stock1.moving_average(stock1.capacity, 1)[-1]) / 1000)
-
-                        # average_5_capacity = int((stock1.moving_average(stock1.capacity, 5)[-1]) / 1000)
-                        # average_4_capacity = int((stock1.moving_average(stock1.capacity, 4)[-1]) / 1000)
-########################################################################################################################
-                        min = 0
-                        min_idx = 0
-
-                        for i in range(2,15):
-                            if min < (get_column(i,i-1)):
-                                min = get_column(i,i-1)
-                                min_idx = i
-
-########################################################################################################################
-                        last_bigval_low = stock1.low[-min_idx] #停損價格
-
-                        final_capacity = "爆大量拉" if average_1_capacity > min else "量平平"  # 是否有雙重跳空訊號
-
-                        # if final_capacity == "爆大量拉":
+                        stock = twstock.realtime.get(str(category_name[i]))
 
                         open_stock = (stock['realtime']['open'])
                         num = stock['info']['code']
@@ -155,7 +157,54 @@ while True:
                         high_ptr = stock['realtime']['high']
                         ltr_ptr = stock['realtime']['latest_trade_price']
 
-                        if get_two_float(ltr_ptr, 2) != "-.":
+                        open_stock = float(get_two_float(open_stock, 2))  # 開盤價
+                        now_val = float(get_two_float(ltr_ptr, 2))
+                        low_val = float(get_two_float(low_ptr, 2))
+                        high_val = float(get_two_float(high_ptr, 2))
+
+                        Leaderboard_num = get_two_float(num, 2)
+                        Leaderboard_name = get_two_float(name, 2)
+
+                        if get_two_float(ltr_ptr, 2) != "-." and low_val < now_val:
+
+                            time.sleep(delay_time)
+                            stock1 = twstock.Stock(str(category_name[i]))
+                            print("ok all ")
+
+
+                            b = twstock.BestFourPoint(stock1)
+
+                            #buy = b.best_four_point_to_buy()  # 買點分析
+                            #sell = b.best_four_point_to_sell()  # 賣點分析
+                            mix = b.best_four_point()  # 綜合分析 建議直接用這個 會比較快
+                            mix_show = ""
+                            if mix[0] == True:
+                                mix_show = "做多"
+                            else:
+                                mix_show = "清倉"
+
+                            average_5_days = stock1.moving_average(stock1.price, 5)[-1]
+                            #average_10_days = stock1.moving_average(stock1.price, 10)[-1]
+                            #average_30_days = stock1.moving_average(stock1.price, 30)[-1]
+
+                            average_1_capacity = int((stock1.moving_average(stock1.capacity, 1)[-1]) / 1000)
+
+                            # average_5_capacity = int((stock1.moving_average(stock1.capacity, 5)[-1]) / 1000)
+                            # average_4_capacity = int((stock1.moving_average(stock1.capacity, 4)[-1]) / 1000)
+    ########################################################################################################################
+                            min = 0
+                            min_idx = 0
+
+                            for i in range(2,15):
+                                if min < (get_column(i,i-1)):
+                                    min = get_column(i,i-1)
+                                    min_idx = i
+
+    ########################################################################################################################
+                            last_bigval_low = stock1.low[-min_idx] #停損價格
+
+                            final_capacity = "爆大量拉" if average_1_capacity > min else "量平平"  # 是否有雙重跳空訊號
+
                             last_stock_val = stock1.price[-2]
 
                             cur_m_val_high = -1
@@ -163,18 +212,14 @@ while True:
                                 if cur_m_val_high < stock1.price[cur_m_cnt]:
                                     cur_m_val_high = stock1.price[cur_m_cnt]
 
-                            open_stock = float(get_two_float(open_stock, 2))# 開盤價
-                            now_val = float(get_two_float(ltr_ptr, 2))
-                            low_val = float(get_two_float(low_ptr, 2))
-                            high_val = float(get_two_float(high_ptr, 2))
+
 
 
                             jump_signal = True if ((abs(now_val - last_stock_val) / now_val) * 100) > 3 else False  # 是否有開高訊號
                             jump_strong_signal = True if low_val > average_5_days else False  # 是否有跳空五日訊號
                             final_jump = "是" if jump_signal and jump_strong_signal else "否"  # 是否有雙重跳空訊號
 
-                            Leaderboard_num = get_two_float(num, 2)
-                            Leaderboard_name = get_two_float(name, 2)
+
 
 
 
@@ -185,8 +230,11 @@ while True:
 
                             mix_show = "做多" if now_val >= cur_m_val_high and (now_val * 1.035) > high_val else "清倉" #透過gain去看今天收盤有沒有超過今天和以往最高價
 
-                            time.sleep(10)
-                            mix_show = check_past_data(mix_show,final_jump,now_val)
+                            RSI_flag = rfi_state()
+                            if mix_show == "做多":
+                                time.sleep(delay_time)
+                                mix_show = check_past_data(mix_show, final_jump, now_val,RSI_flag)
+
 
                                 # # 乖離值 Y值（乖離率）＝（當日收盤價－N日內移動平均收市價）/N日內移動平均收盤價×100％
                             # bias_val = int((float(get_two_float(ltr_ptr, 2)) - average_5_days) / 5 * 100)
@@ -207,9 +255,11 @@ while True:
 
                             # response = requests.request("POST", url, headers=headers, data=payload)
 
+
                             print(msg)
                             print('------------')
 
+                        time.sleep(delay_time)
                     except:
                             print("ERROR")
 
