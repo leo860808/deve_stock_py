@@ -146,7 +146,7 @@ while True:
                 or int(now_localtime.split(":")[1]) >= now_localtime_set_mstart2 and int(now_localtime.split(":")[1]) < now_localtime_set_mstop2:
             for i in range(len(category_name)):
                 if containEnglish(str(category_name[i])) != True and len(str(category_name[i])) < 5:
-                    try:
+                    if True:
 
                         stock = twstock.realtime.get(str(category_name[i]))
 
@@ -156,16 +156,21 @@ while True:
                         low_ptr = stock['realtime']['low']
                         high_ptr = stock['realtime']['high']
                         ltr_ptr = stock['realtime']['latest_trade_price']
+                        best_bid_price = stock['realtime']['best_bid_price']
+
+                        print(stock)
 
                         open_stock = float(get_two_float(open_stock, 2))  # 開盤價
-                        now_val = float(get_two_float(ltr_ptr, 2))
+                        #now_val = float(get_two_float(ltr_ptr, 2))
+                        now_val = float(best_bid_price[0]) #用最後成交量代替限價
                         low_val = float(get_two_float(low_ptr, 2))
                         high_val = float(get_two_float(high_ptr, 2))
+
 
                         Leaderboard_num = get_two_float(num, 2)
                         Leaderboard_name = get_two_float(name, 2)
 
-                        if get_two_float(ltr_ptr, 2) != "-." and low_val < now_val:
+                        if low_val < now_val:
 
                             time.sleep(delay_time)
                             stock1 = twstock.Stock(str(category_name[i]))
@@ -260,7 +265,7 @@ while True:
                             print('------------')
 
                         time.sleep(delay_time)
-                    except:
+                    else:
                             print("ERROR")
-
+                            time.sleep(delay_time)
 
